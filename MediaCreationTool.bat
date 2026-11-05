@@ -1,14 +1,15 @@
 @goto latest at github.com/AveYo/MediaCreationTool.bat
-:Universal MCT wrapper script for all Windows 10/11 versions from 1507 to 23H2!
+:Universal MCT wrapper script for all Windows 10/11 versions from 1507 to 24H2!
+:: Original script by AveYo (github.com/AveYo/MediaCreationTool.bat) - 24H2 support, QoL and fixes by Noxiah (jedPlatforms)
 :: Nothing but Microsoft-hosted source links and no third-party tools; script just configures an xml and starts MCT
 :: Ingenious support for business editions (Enterprise / VL) selecting language, x86, x64 or AiO inside the MCT GUI
-:: Changelog: 2023.11.29 stable
+:: Changelog: 2026.11.06 [Noxiah (jedPlatforms)] - added 11 24H2; catalog check; download size check; fixed menu relaunch bug
 :: - all issues ironed out; upgrade keeping files from Eval editions too; pickup $ISO$ dir content to add on media
 :: - DU in 11: auto installs 22000.556 atm; older skip_11_checks, without Server label; Home offline local account
-:: on upgrade: latest build, on offline install: 11 23H2 22631.2861 / 11 22H2 22621.1702 / 11 21H2 22000.318 / 22H2 19045.2965 / 21H2 19044.1288 / 21H1 19043.1348 / 20H2 19042.1052
+:: on upgrade: latest build, on offline install: 11 24H2 26100.4349 / 11 23H2 22631.2861 / 11 22H2 22621.1702 / 11 21H2 22000.318 / 22H2 19045.2965 / 21H2 19044.1288 / 21H1 19043.1348 / 20H2 19042.1052
 
-::# uncomment to skip GUI dialog for MCT choice: 1507 to 11 23H2 - or rename script: "23H2 MediaCreationTool.bat"
-rem set MCT=2310
+::# uncomment to skip GUI dialog for MCT choice: 1507 to 11 24H2 - or rename script: "24H2 MediaCreationTool.bat"
+rem set MCT=2409
 
 ::# uncomment to start auto upgrade setup directly (no prompts) - or rename script: "auto 11 MediaCreationTool.bat"
 rem set /a AUTO=1
@@ -44,12 +45,13 @@ set OPTIONS=%OPTIONS% /Telemetry Disable /CompactOS Disable
 ::# comment to not unhide Enterprise for 1709+ in products.xml
 set /a UNHIDE_BUSINESS=1
 
+::# 25H2 / 26H2: no hosted catalog - drop products11_25H2.cab / products11_26H2.cab (and optionally MediaCreationTool11_26H2.exe) next to the script
 ::# comment to not insert Enterprise esd links for 1607,1703 or update links for 1909,2004,20H2,21H2,22H2,11_21H2,11_22H2,11_23H2 in products.xml
 set /a INSERT_BUSINESS=1
 
-::# MCT Version choice dialog items and default-index [11_23H2]
-set VERSIONS=1507,1511,1607,1703,1709,1803,1809,1903,1909,20H1,20H2,21H1,21H2,22H2,11_21H2,11_22H2,11_23H2
-set /a dV=17
+::# MCT Version choice dialog items and default-index [11_24H2]
+set VERSIONS=1507,1511,1607,1703,1709,1803,1809,1903,1909,20H1,20H2,21H1,21H2,22H2,11_21H2,11_22H2,11_23H2,11_24H2,11_25H2,11_26H2
+set /a dV=18
 
 ::# MCT Preset choice dialog items and default-index [Select in MCT]
 set PRESETS=^&Auto Upgrade,Auto ^&ISO,Auto ^&USB,^&Select,MCT ^&Defaults
@@ -66,7 +68,7 @@ set "OS_ARCH=x64" & if "%PROCESSOR_ARCHITECTURE:~-2%" equ "86" if not defined PR
 
 ::# parse MCT choice from script name or commandline - accepts both formats: 1909 or 19H2 etc.
 for %%V in (1.1507 2.1511 3.1607 4.1703 5.1709 6.1803 7.1809 8.1903 8.19H1 9.1909 9.19H2 10.2004 10.20H1 11.2009 11.20H2 12.2104
- 12.21H1 13.2109 13.21H2 14.2210 14.22H2 15.2110 15.11_21H2 16.2209 16.11_22H2 17.2310 17.11_23H2) do for %%s in (%MCT% %~n0 %*) do if /i %%~xV equ .%%~s set "MCT=%%~nV" & set "VID=%%~s"
+ 12.21H1 13.2109 13.21H2 14.2210 14.22H2 15.2110 15.11_21H2 16.2209 16.11_22H2 17.2310 17.11_23H2 18.2409 18.24H2 18.11_24H2 19.2509 19.25H2 19.11_25H2 20.2609 20.26H2 20.11_26H2) do for %%s in (%MCT% %~n0 %*) do if /i %%~xV equ .%%~s set "MCT=%%~nV" & set "VID=%%~s"
 if defined MCT if not defined VID set "MCT="
 
 ::# parse AUTO from script name or commandline - starts unattended upgrade / in-place repair / cross-edition
@@ -106,6 +108,9 @@ for %%s in (%~n0 %*) do if /i %%s equ def set "DEF=def"
 ::# parse HIDE from script name or commandline - hide script window while awaiting MCT processing (new default is to minimize)
 set /a hide=2 & for %%s in (%~n0 %*) do if /i %%s equ hide set /a hide=1
 
+::# parse NOCHECK from script name or commandline - skip the catalog build sanity check (added by Noxiah)
+set NOCHECK=& for %%s in (%~n0 %*) do if /i %%s equ nocheck set NOCHECK=1
+
 ::# auto detected / selected media preset
 if defined EDITION (set MEDIA_EDITION=%EDITION%) else (set MEDIA_EDITION=%OS_EDITION%)
 if defined LANGCODE (set MEDIA_LANGCODE=%LANGCODE%) else (set MEDIA_LANGCODE=%OS_LANGCODE%)
@@ -120,7 +125,7 @@ if not defined VID (set VID=%OS_VID%)
 (set MEDIA_EDITION=%MEDIA_EDITION:IoTEnterpriseS=Enterprise%)
 
 ::# get previous GUI selection if self elevated and skip to choice
-for %%s in (%*) do for %%P in (1 2 3 4) do if %%~ns gtr 0 if %%~ns lss 15 if %%~xs. equ .%%P. set /a PRE=%%P & set /a MCT=%%~ns
+for %%s in (%*) do for %%P in (1 2 3 4) do if %%~ns gtr 0 if %%~ns lss 100 if %%~xs. equ .%%P. set /a PRE=%%P & set /a MCT=%%~ns
 
 ::# write auto media preset hint
 %<%:f0 " Detected Media "%>>% & if defined MCT %<%:5f " %VID% "%>>%
@@ -141,6 +146,24 @@ if %MCT%0 lss 1 if %PRE%0 gtr 1 call :choices MCT "%VERSIONS%" %dV% "MCT Version
 if %MCT%0 gtr 1 if %PRE%0 lss 1 call :choices PRE "%PRESETS%"  %dP% "MCT Preset"  11 white 0x005a9e 320
 if %MCT%0 gtr 1 if %PRE%0 lss 1 goto choice-0 = cancel
 goto choice-%MCT%
+
+:choice-20
+::# 25H2 / 26H2 have no Microsoft-hosted products.cab: provide your own catalog next to the script - see README. EXE link not verified
+set "VER=26300" & set "VID=11_26H2" & set "CB=26300.9457" & set "CT=2026/" & set "CC="
+set "EXE=https://go.microsoft.com/fwlink/?linkid=2156295"
+goto process ::# windows 11 26H2 - needs products11_26H2.cab or .xml next to the script (catalog 2.1 + sha256, newer MCT)
+
+:choice-19
+::# 25H2 shares the 24H2 servicing branch - the 24H2 catalog would silently build 24H2 media, so a pinned 26200 catalog is required
+set "VER=26200" & set "VID=11_25H2" & set "CB=26200.6584" & set "CT=2025/" & set "CC="
+set "EXE=https://go.microsoft.com/fwlink/?linkid=2156295"
+goto process ::# windows 11 25H2 - needs products11_25H2.cab or .xml next to the script
+
+:choice-18
+set "VER=26100" & set "VID=11_24H2" & set "CB=26100.4349.250607-1500.ge_release_svc_refresh" & set "CT=2025/06/" & set "CC=2.0"
+set "CAB=https://download.microsoft.com/download/8e0c23e7-ddc2-45c4-b7e1-85a808b408ee/Products-Win11-24H2-6B.cab"
+set "EXE=https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/mediacreationtool.exe"
+goto process ::# windows 11 24H2
 
 :choice-17
 set "VER=22631" & set "VID=11_23H2" & set "CB=22631.2861.231204-0538.23H2_ni_release_svc_refresh" & set "CT=2023/12/" & set "CC=2.0"
@@ -315,7 +338,7 @@ fltmc>nul||(set A=/d /x /c set "ROOT=%ROOT%"^& start "MCT" "%~f0" %* %set%& powe
 mkdir "%WORK%\MCT" >nul 2>nul & attrib -R -S -H "%WORK%" /D & pushd "%WORK%\MCT"
 del /f /q products.* *.key EI.cfg PID.txt auto.cmd AutoUnattend.xml >nul 2>nul
 set /a latest=0 & if exist latest set /p latest=<latest
-echo;20231129>latest & if %latest% lss 20211116 del /f /q products*.* MediaCreationTool*.exe >nul 2>nul
+(echo;20261106)>latest & if %latest% lss 20261106 del /f /q products*.* MediaCreationTool*.exe >nul 2>nul
 
 ::# edition fallback to ones that MCT supports - after selection
 (set MEDIA_EDITION=%MEDIA_EDITION:Eval=%)
@@ -362,6 +385,9 @@ if %VER% geq 22000 (set MEDIA_ARCH=x64& if defined ARCH set ARCH=x64)
 if %VER% geq 22000 (set X=11& set VIS=21H2) else (set X=10& set VIS=%VID%)
 if %VER% geq 22621 (set X=11& set VIS=22H2)
 if %VER% geq 22631 (set X=11& set VIS=23H2)
+if %VER% geq 26100 (set X=11& set VIS=24H2)
+if %VER% geq 26200 (set X=11& set VIS=25H2)
+if %VER% geq 26300 (set X=11& set VIS=26H2)
 
 ::# refresh screen
 cls & <"%~f0" (set /p _=&for /l %%s in (1,1,20) do set _=& set/p _=& call echo;%%_%%)
@@ -371,6 +397,8 @@ cls & <"%~f0" (set /p _=&for /l %%s in (1,1,20) do set _=& set/p _=& call echo;%
 if %PRE% leq 3 %<%:6f " %MEDIA_LANGCODE% "%>>%  &  %<%:9f " %MEDIA_CFG% "%>>%  &  %<%:2f " %MEDIA_ARCH% "%>%
 echo;
 
+::# bring-your-own files: products<VID>.cab / .xml and MediaCreationTool<VID>.exe override any download - checked next to the script and in a CAB subfolder (added by Noxiah)
+for %%d in ("%ROOT%" "%ROOT%\CAB") do for %%s in (products%VID%.cab products%VID%.xml MediaCreationTool%VID%.exe) do if exist "%%~d\%%s" copy /y "%%~d\%%s" "%%s" >nul 2>nul
 ::# download MCT and CAB / XML - new snippet to try via bits, net, certutil, and insecure/secure
 if defined EXE echo;%EXE% & call :DOWNLOAD "%EXE%" MediaCreationTool%VID%.exe
 if defined XML echo;%XML% & call :DOWNLOAD "%XML%" products%VID%.xml
@@ -379,9 +407,20 @@ if exist products%VID%.xml copy /y products%VID%.xml products.xml >nul 2>nul
 if exist products%VID%.cab del /f /q products%VID%.xml >nul 2>nul
 if exist products%VID%.cab expand.exe -R products%VID%.cab -F:* . >nul 2>nul
 set "/hint=Check urls in browser | del ESD dir | use powershell v3.0+ | unblock powershell | enable BITS serv"
+if %VER% geq 26200 set "/hint=No Microsoft-hosted catalog for %VID%: put products%VID%.cab (or .xml) next to the script, or in a CAB subfolder"
+::# drop truncated downloads (ex. a 1-byte exe served for a retired link) so they are reported instead of cached - added by Noxiah
+for %%s in (MediaCreationTool%VID%.exe) do if exist %%s if %%~zs lss 1000000 del /f /q %%s >nul 2>nul
+for %%s in (products%VID%.cab) do if exist %%s if %%~zs lss 1000 del /f /q %%s >nul 2>nul
 echo;& set err=& for %%s in (products.xml MediaCreationTool%VID%.exe) do if not exist %%s set err=1
 if defined err (%<%:4f " ERROR "%>>% & %<%:0f " %/hint% "%>%) else if not defined err %<%:0f " %PRESET% "%>%
-if defined err (del /f /q products%VID%.* MediaCreationTool%VID%.exe 2>nul & pause & exit /b1)
+if defined err (del /f /q products%VID%.* MediaCreationTool%VID%.exe 2>nul & pause & exit /b 1)
+::# catalog sanity check: MCT builds whatever products.xml lists, so a catalog without the requested 11 build would silently give other media
+set CHK=& if not defined err if %VER% geq 22000 (findstr /i /c:"%VER%." products.xml >nul 2>nul & if errorlevel 1 set CHK=2)
+set "/hint2=products.xml lists no %VER% builds - catalog changed? add nocheck to script name to ignore"
+if "%CHK%" equ "2" if %VER% lss 26100 set CHK=3
+if "%CHK%" equ "2" if defined NOCHECK set CHK=3
+if "%CHK%" equ "2" (%<%:4f " ERROR "%>>% & %<%:0f " %/hint2% "%>% & del /f /q products%VID%.* products.xml 2>nul & pause & exit /b 1)
+if "%CHK%" equ "3" (%<%:6f " WARNING "%>>% & %<%:0f " %/hint2% "%>%)
 
 ::# configure products.xml in one go via powershell snippet - most of the MCT fixes happen there
 call :PRODUCTS_XML
@@ -942,9 +981,9 @@ function PRODUCTS_XML { [xml]$xml = [io.file]::ReadAllText("$pwd\products.xml",[
  $url = "http://b1.download.windowsupdate.com/"
 #:: apply/insert Catalog version attribute for MCT compatibility
  if ($null -ne $xml.SelectSingleNode('/MCT')) {
-   $xml.MCT.Catalogs.Catalog.version = $env:CC; $root = $xml.SelectSingleNode('/MCT/Catalogs/Catalog/PublishedMedia')
+   if ($env:CC) {$xml.MCT.Catalogs.Catalog.version = $env:CC}; $root = $xml.SelectSingleNode('/MCT/Catalogs/Catalog/PublishedMedia')
  } else {
-   $temp = [xml]('<?xml version="1.0" encoding="UTF-8"?><MCT><Catalogs><Catalog version="' + $env:CC + '"/></Catalogs></MCT>')
+   $temp = [xml]('<?xml version="1.0" encoding="UTF-8"?><MCT><Catalogs><Catalog version="' + $(if ($env:CC) {$env:CC} else {'2.0'}) + '"/></Catalogs></MCT>')
    $temp.SelectSingleNode('/MCT/Catalogs/Catalog').AppendChild($temp.ImportNode($xml.PublishedMedia,$true)) >$null
    $xml = $temp; $root = $xml.SelectSingleNode('/MCT/Catalogs/Catalog/PublishedMedia')
  }

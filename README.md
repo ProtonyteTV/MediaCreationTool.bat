@@ -3,6 +3,8 @@ Not just an Universal MediaCreationTool wrapper script with ingenious support fo
 A powerful yet simple windows 10 / 11 deployment automation tool as well!  
 *If you had no success launching the script so far, this latest version will work*  
 
+*Maintained update (Windows 11 24H2, fixes, QoL) by **Noxiah (jedPlatforms)** - original script and concept by **AveYo***  
+
 Presets  
 -------  
 1 ***Auto Upgrade*** with detected media, script assists setupprep for upgrading directly  
@@ -125,4 +127,13 @@ _We did it! We broke [the previous gist](https://git.io/MediaCreationTool.bat)_ 
 2022.03.18: fix regression with Auto Upgrade; removed powershell -nop arg (issue #41); enhanced 11 AutoUnattend.xml
 2022.03.20: stable - all issues ironed out; improved script ui; upgrade keeping files from Eval editions too
             last squash I promise ;)
+2026.11.06: [Noxiah (jedPlatforms)] 11 24H2 26100.4349 added, new default (rename script `24H2 MediaCreationTool.bat` or `11_24H2`)
+            fix: menu choices 15+ were lost after the script self-elevated (lss 15 -> lss 100)
+            fix: `latest` cache stamp was written empty (digit directly before `>` is a handle redirect)
+            fix: `exit /b1` typo; qol: truncated downloads discarded and reported instead of cached
+            qol: catalog sanity check aborts if 24H2 catalog lists no 26100 builds; add `nocheck` to script name to skip
+            new: 11 25H2 (26200) and 26H2 (26300) menu entries - Microsoft hosts no catalog for them, so put
+            `products11_25H2.cab` / `products11_26H2.cab` (or .xml) next to the script, or inside a `CAB\` subfolder next to it
+            optional `MediaCreationTool11_26H2.exe` too (same two locations); these override any download, script aborts
+            instead of building the wrong version if no matching catalog is found
 ```
